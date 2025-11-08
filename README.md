@@ -16,9 +16,10 @@ The thesis is about extending the ARM32 ISA with instructions to accelerate the 
 1. Clone the repository
 
 ```console
-$ git clone --recursive https://github.com/eyeonspringfield/thesis-monorepo
-$ cd thesis-monorepo
-$ git submodule update --init --recursive
+$ git clone --recursive-submodules https://github.com/eyeonspringfield/thesis-monorepo
+$ cd thesis-monorepo/walrus
+$ git checkout thesis-mods
+$ cd ..
 ```
 
 2. Install emscripten
@@ -61,7 +62,7 @@ Or run individual files manually:
 
 ```console
 $ mkdir -p logs
-$ qemu-arm -d in_asm -D logs/main.log ./walrus/out/release/arm/walrus build/main.wasm
+$ qemu-arm -d in_asm -D logs/main.log ./walrus/out/release/arm/walrus --jit build/main.wasm
 ```
 
 The log files in the `logs` folder will contain the instructions executed by Walrus for each program.
@@ -73,3 +74,9 @@ The log files in the `logs` folder will contain the instructions executed by Wal
 - QEMU
 - arm-linux-gnueabi-gcc & arm-linux-gnueabi-g++
 - gcc-arm-linux-gnueabihf & g++-arm-linux-gnueabihf
+
+To install the required tools on Debian, run:
+
+```console
+# apt install cmake make ninja-build qemu-system qemu-user arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+```
