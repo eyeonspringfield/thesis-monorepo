@@ -1,0 +1,7 @@
+[submodule "walrus"]
+	path = walrus
+	url = https://github.com/eyeonspringfield/walrus.git
+	branch = thesis-mods
+[submodule "toolchain/emsdk"]
+	path = toolchain/emsdk
+	url = https://github.com/emscripten-core/emsdk.git
