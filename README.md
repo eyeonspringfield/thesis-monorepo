@@ -16,7 +16,7 @@ The thesis is about extending the ARM32 ISA with instructions to accelerate the 
 1. Clone the repository
 
 ```console
-$ git clone --recursive-submodules https://github.com/eyeonspringfield/thesis-monorepo
+$ git clone --recurse-submodules https://github.com/eyeonspringfield/thesis-monorepo
 $ cd thesis-monorepo/walrus
 $ git checkout thesis-mods
 $ cd ..
