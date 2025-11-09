@@ -2,8 +2,6 @@
 
 This repository is the monorepo for all work regarding my bachelor's thesis.
 
-The thesis is about extending the ARM32 ISA with instructions to accelerate the execution of WebAssembly. Similar to prior extensions aiming to accelerate the execution of Java Bytecode.
-
 ### Toolchain
 
 - **Walrus**: WebAssembly Lightweight RUntime (S), a lightweight WASM runtime engine
@@ -12,6 +10,12 @@ The thesis is about extending the ARM32 ISA with instructions to accelerate the 
 - **QEMU**: Emulator for emulating an ARM32 processor
 
 ### Getting Started
+
+> To skip steps 1–3, you can run:
+> ```console
+> $ ./setup.sh
+> ```
+> from the repository root. This installs Emscripten and builds Walrus for ARM32 automatically.
 
 1. Clone the repository
 
@@ -72,11 +76,11 @@ The log files in the `logs` folder will contain the instructions executed by Wal
 - GNU Make
 - Ninja
 - QEMU
-- arm-linux-gnueabi-gcc & arm-linux-gnueabi-g++
+- gcc-arm-linux-gnueabi & g++-arm-linux-gnueabi
 - gcc-arm-linux-gnueabihf & g++-arm-linux-gnueabihf
 
 To install the required tools on Debian, run:
 
 ```console
-# apt install cmake make ninja-build qemu-system qemu-user arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+# apt install cmake make ninja-build qemu-system qemu-user gcc-arm-linux-gnueabi g++-arm-linux-gnueabi gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
 ```
