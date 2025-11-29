@@ -84,3 +84,21 @@ To install the required tools on Debian, run:
 ```console
 # apt install cmake make ninja-build qemu-system qemu-user gcc-arm-linux-gnueabi g++-arm-linux-gnueabi gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
 ```
+### Additional notes
+Walrus has been modified to compile under QEMU ARM32. The modifications are in the `thesis-mods` branch.
+
+SLJIT has been modified to emit NOP instructions when emitting JITed code. This is to make analysis easier.
+
+When emitting a function prologue, SLJIT emits the following instructions:
+```asm
+e30cc123  movw     ip, #0xc123
+e34cc456  movt     ip, #0xc456
+```
+
+When emitting a function epilogue, SLJIT emits the following instructions:
+```asm
+e30ccabc  movw     ip, #0xcabc
+e34ccdef  movt     ip, #0xcdef
+```
+
+Logs can be grepped for these instructions to find the start and end of JITed functions.
