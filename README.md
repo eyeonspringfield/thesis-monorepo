@@ -11,11 +11,11 @@ This repository is the monorepo for all work regarding my bachelor's thesis.
 
 ### Getting Started
 
-> To skip steps 1–3, you can run:
+> To skip steps 1–4, you can run:
 > ```console
 > $ ./setup.sh
 > ```
-> from the repository root. This installs Emscripten and builds Walrus for ARM32 automatically.
+> from the repository root. This installs Emscripten, compiles wasm2wat and compiles Walrus for ARM32 automatically.
 
 1. Clone the repository
 
@@ -82,6 +82,12 @@ $ qemu-arm -d in_asm -D logs/main.log ./walrus/out/release/arm/walrus --jit buil
 
 The log files in the `logs` folder will contain the instructions executed by Walrus for each program.
 
+To print an analysis of the logs, run the following script:
+
+```console
+$ python3 scripts/analyze_logs.py
+```
+
 Additional make commands:
 - `make clean` => `rm -rf build`
 - `make clean-logs` => `rm -rf logs`
@@ -90,6 +96,7 @@ Additional make commands:
 - CMake
 - GNU Make
 - Ninja
+- Python
 - QEMU
 - gcc-arm-linux-gnueabi & g++-arm-linux-gnueabi
 - gcc-arm-linux-gnueabihf & g++-arm-linux-gnueabihf
@@ -97,7 +104,7 @@ Additional make commands:
 To install the required tools on Debian, run:
 
 ```console
-# apt install cmake make ninja-build qemu-system qemu-user gcc-arm-linux-gnueabi g++-arm-linux-gnueabi gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+# apt install cmake make ninja-build python3 qemu-user gcc-arm-linux-gnueabi g++-arm-linux-gnueabi gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
 ```
 ### Additional notes
 Walrus has been modified to compile under QEMU ARM32. The modifications are in the `thesis-mods` branch.
