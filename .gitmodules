@@ -5,3 +5,6 @@
 [submodule "toolchain/emsdk"]
 	path = toolchain/emsdk
 	url = https://github.com/emscripten-core/emsdk.git
+[submodule "toolchain/wabt"]
+	path = toolchain/wabt
+	url = https://github.com/WebAssembly/wabt

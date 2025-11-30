@@ -10,6 +10,11 @@ cd ../toolchain/emsdk || exit 1
 ./emsdk install latest
 ./emsdk activate latest
 
+cd ../wabt || exit 1
+mkdir build && cd build || exit 1
+cmake .. -DBUILD_TESTS=OFF -DBUILD_TOOLS=ON -DCMAKE_BUILD_TYPE=Release
+make wasm2wat
+
 cd ../../walrus || exit 1
 cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/arm -DWALRUS_ARCH=arm -DWALRUS_HOST=linux -DWALRUS_MODE=release -DWALRUS_OUTPUT=shell -DCMAKE_C_COMPILER=arm-linux-gnueabi-gcc -DCMAKE_CXX_COMPILER=arm-linux-gnueabi-g++ -DCMAKE_EXE_LINKER_FLAGS="-static" -GNinja
 ninja -Cout/release/arm

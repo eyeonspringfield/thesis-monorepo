@@ -35,7 +35,15 @@ $ ./emsdk activate latest
 $ cd ../..
 ```
 
-3. Compile Walrus for ARM32
+3. Compile wasm2wat
+```console
+$ cd toolchain/wabt
+$ mkdir build && cd build
+$ cmake .. -DBUILD_TESTS=OFF -DBUILD_TOOLS=ON -DCMAKE_BUILD_TYPE=Release
+$ make wasm2wat
+```
+
+4. Compile Walrus for ARM32
 
 ```console
 $ cd walrus
@@ -43,20 +51,23 @@ $ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/arm -DWALRUS_ARCH=a
 $ ninja -Cout/release/arm
 ```
 
-4. Compile the C and C++ programs in the `src` folder to WASM
+5. Compile the C and C++ programs in the `src` folder to WASM & WAT
 
 ```console
 $ cd ..
 $ make
 ```
 
+This will compile all C and C++ files in the `src` folder to WASM files in the `build` folder using Emscripten, and then convert them to WAT files using `wasm2wat`.
+
 Or compile individual files manually:
 
 ```console
-$ source toolchain/emsdk/emsdk_env.sh && toolchain/emsdk/upstream/emscripten/emcc src/main.c -O2 -s STANDALONE_WASM -s WASM_BIGINT=0 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -o build/main.wasm
+$ source toolchain/emsdk/emsdk_env.sh && toolchain/emsdk/upstream/emscripten/emcc src/main.c -O0 -s STANDALONE_WASM -s WASM_BIGINT=0 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -o build/main.wasm
+$ toolchain/wabt/build/wasm2wat build/wasm/main.wasm -o build/wat/main.wat
 ```
 
-5. Run the compiled WASM programs using Walrus and QEMU
+6. Run the compiled WASM programs using Walrus and QEMU
 
 ```console
 $ make run
@@ -70,6 +81,10 @@ $ qemu-arm -d in_asm -D logs/main.log ./walrus/out/release/arm/walrus --jit buil
 ```
 
 The log files in the `logs` folder will contain the instructions executed by Walrus for each program.
+
+Additional make commands:
+- `make clean` => `rm -rf build`
+- `make clean-logs` => `rm -rf logs`
 
 ### Required tools
 - CMake
@@ -87,7 +102,7 @@ To install the required tools on Debian, run:
 ### Additional notes
 Walrus has been modified to compile under QEMU ARM32. The modifications are in the `thesis-mods` branch.
 
-SLJIT has been modified to emit NOP instructions when emitting JITed code. This is to make analysis easier.
+SLJIT has been modified to emit unique, unused `MOVW`+`MOVT` instruction pairs when emitting JITed code. This is to make analysis easier.
 
 When emitting a function prologue, SLJIT emits the following instructions:
 ```asm
