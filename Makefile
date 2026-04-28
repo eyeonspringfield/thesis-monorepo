@@ -9,7 +9,8 @@ WASM2WAT = $(CURDIR)/toolchain/wabt/build/wasm2wat
 WALRUS = $(CURDIR)/walrus/out/release/arm/walrus
 WALRUS_CUSTOM = $(CURDIR)/walrus/out/release/arm-emu/walrus
 LOG_DIR  = $(CURDIR)/logs
-QEMU = /home/mark/dev/qemu/build/qemu-arm
+METRICS_DIR = $(LOG_DIR)/metrics
+QEMU = qemu-arm
 OBJDUMP = arm-linux-gnueabi-objdump
 
 CFLAGS = -O0 -s STANDALONE_WASM -s WASM_BIGINT=0 -s ERROR_ON_UNDEFINED_SYMBOLS=0
@@ -62,3 +63,33 @@ run-emu: $(WASM) $(WAT)
 
 clean-logs:
 	rm -rf $(LOG_DIR)
+
+run-metrics: $(WASM) $(WAT)
+	@mkdir -p $(METRICS_DIR)
+	@for f in $(WASM); do \
+		base=$$(basename $$f .wasm); \
+		ts=$$(date +"%Y-%m-%d-%H:%M:%S"); \
+		prefix=$(METRICS_DIR)/$${base}-$${ts}; \
+		echo "baseline" > $${prefix}.mode; \
+		echo "Running $$f (baseline) with metrics artifacts..."; \
+		taskset -c 0 perf stat -e duration_time -o $${prefix}.time \
+			$(QEMU) -d in_asm,nochain -D $${prefix}.qemu.log $(WALRUS) --jit $$f \
+			>$${prefix}.stdout 2>$${prefix}.stderr; \
+		$(OBJDUMP) -D -b binary -m arm /tmp/jit_dump.bin > $${prefix}.bin.log; \
+		echo "Artifacts saved with prefix $${prefix}"; \
+	done
+
+run-emu-metrics: $(WASM) $(WAT)
+	@mkdir -p $(METRICS_DIR)
+	@for f in $(WASM); do \
+		base=$$(basename $$f .wasm); \
+		ts=$$(date +"%Y-%m-%d-%H:%M:%S"); \
+		prefix=$(METRICS_DIR)/$${base}-$${ts}; \
+		echo "emu" > $${prefix}.mode; \
+		echo "Running $$f (custom emu) with metrics artifacts..."; \
+		taskset -c 0 perf stat -e duration_time -o $${prefix}.time \
+			$(QEMU) -d in_asm,nochain -D $${prefix}.qemu.log $(WALRUS_CUSTOM) --jit $$f \
+			>$${prefix}.stdout 2>$${prefix}.stderr; \
+		$(OBJDUMP) -D -b binary -m arm /tmp/jit_dump.bin > $${prefix}.bin.log; \
+		echo "Artifacts saved with prefix $${prefix}"; \
+	done

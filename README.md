@@ -51,6 +51,8 @@ $ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/arm -DWALRUS_ARCH=a
 $ ninja -Cout/release/arm
 ```
 
+*Note*: To compile with custom instruction emulation, add `-DWALRUS_CUSTOM_INSTRUCTIONS=ON` to the CMake command. This enables the custom instruction emulation described in `docs/instruction.md` and implemented via `src/emulator.c`.
+
 5. Compile the C and C++ programs in the `src` folder to WASM & WAT
 
 ```console
@@ -73,6 +75,12 @@ $ toolchain/wabt/build/wasm2wat build/wasm/main.wasm -o build/wat/main.wat
 $ make run
 ```
 
+To run the compiled programs with custom instruction emulation, use
+
+```console
+$ make run-emu
+```
+
 Or run individual files manually:
 
 ```console
@@ -86,6 +94,19 @@ To print an analysis of the logs, run the following script:
 
 ```console
 $ python3 scripts/analyze_logs.py
+$ python3 scripts/analyze_logs.py -b
+```
+
+To collect emulation metrics artifacts, run:
+
+```console
+$ make run-metrics
+$ make run-emu-metrics
+```
+
+To parse metrics, run
+```console
+$ python3 script/analyze_logs -m
 ```
 
 Additional make commands:

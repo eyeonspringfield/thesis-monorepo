@@ -4,6 +4,7 @@
 import os
 import sys
 from collections import defaultdict
+import re
 
 logs_dir = 'logs'
 
@@ -163,9 +164,131 @@ def process_qemu_log():
             candidates = filter_and_sort_patterns(pattern_freq, min_frequency=10)
             print_findings(filename, candidates)
 
+def metrics_dir():
+    candidate = os.path.join(logs_dir, 'metrics')
+    return candidate if os.path.isdir(candidate) else logs_dir
+
+
+def parse_duration_ns(time_path):
+    try:
+        with open(time_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if "duration_time" not in line:
+                    continue
+                parts = line.strip().split()
+                if not parts:
+                    continue
+                value = parts[0].replace(",", "")
+                try:
+                    return int(value)
+                except ValueError:
+                    return None
+    except FileNotFoundError:
+        return None
+    return None
+
+
+def parse_emu_metrics(stderr_path):
+    metrics = {}
+    try:
+        with open(stderr_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line.startswith("EMU_METRIC "):
+                    continue
+                payload = line[len("EMU_METRIC "):]
+                if "=" not in payload:
+                    continue
+                key, value = payload.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+                try:
+                    metrics[key] = int(value)
+                except ValueError:
+                    continue
+    except FileNotFoundError:
+        return metrics
+    return metrics
+
+
+def discover_runs(metrics_dir):
+    runs = []
+    ts_re = re.compile(r"^(?P<program>.+)-(?P<ts>\d{4}-\d{2}-\d{2}-\d{2}:\d{2}:\d{2})$")
+    for filename in os.listdir(metrics_dir):
+        if not filename.endswith(".time"):
+            continue
+        stem = filename[:-5]
+        match = ts_re.match(stem)
+        if not match:
+            continue
+        program = match.group("program")
+        timestamp = match.group("ts")
+        time_path = os.path.join(metrics_dir, filename)
+        mode_path = os.path.join(metrics_dir, f"{stem}.mode")
+        stderr_path = os.path.join(metrics_dir, f"{stem}.stderr")
+        mode = "unknown"
+        if os.path.exists(mode_path):
+            with open(mode_path, "r", encoding="utf-8", errors="replace") as f:
+                mode = f.read().strip().lower() or "unknown"
+        time_ns = parse_duration_ns(time_path)
+        metrics = parse_emu_metrics(stderr_path)
+        runs.append({
+            "program": program,
+            "timestamp": timestamp,
+            "mode": mode,
+            "stem": stem,
+            "time_ns": time_ns,
+            "metrics": metrics,
+        })
+    return runs
+
+def print_metrics():
+    runs = discover_runs(metrics_dir())
+    if not runs:
+        print(f"No .time artifacts found in {metrics_dir}")
+        return
+
+    selected = {}
+    for run in runs:
+        key = (run["program"], run["mode"])
+        prev = selected.get(key)
+        if prev is None or run["timestamp"] > prev["timestamp"]:
+            selected[key] = run
+
+    programs = sorted({run["program"] for run in runs})
+    header = (
+        "program,baseline_time_ns,emu_time_ns,emu_overhead_ns,"
+        "wasmbchk_count,wasmld_count,wasmstr_count,total_count,baseline_stem,emu_stem"
+    )
+    print(header)
+
+    for program in programs:
+        baseline = selected.get((program, "baseline"))
+        emu = selected.get((program, "emu"))
+        baseline_time = baseline["time_ns"] if baseline else None
+        emu_time = emu["time_ns"] if emu else None
+        overhead = None
+        if baseline_time is not None and emu_time is not None:
+            overhead = emu_time - baseline_time
+
+        metrics = emu["metrics"] if emu else {}
+        wasmbchk = metrics.get("wasmbchk_count", 0)
+        wasmld = metrics.get("wasmld_count", 0)
+        wasmstr = metrics.get("wasmstr_count", 0)
+        total = metrics.get("total_count", wasmbchk + wasmld + wasmstr)
+
+        print(
+            f"{program},{baseline_time},{emu_time},{overhead},"
+            f"{wasmbchk},{wasmld},{wasmstr},{total},"
+            f"{baseline['stem'] if baseline else ''},{emu['stem'] if emu else ''}"
+        )
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] in ("--binary", "-b"):
         process_binary_log()
+    elif len(sys.argv) > 1 and sys.argv[1] in ("--metrics", "-m"):
+        print_metrics()
     else:
         process_qemu_log()
 

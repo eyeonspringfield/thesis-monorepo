@@ -8,13 +8,26 @@
 
 #define WASMBCHK_MASK 0xFFF000F0u
 #define WASMBCHK_TAG  0xE7F000F0u
+#define WASMLD_TAG    0xE7E000F0u
+#define WASMSTR_TAG   0xE7D000F0u
 #define CPSR_C_BIT    (1u << 29)
 
 // Forward decl of emulated instructions.
 void wasmbchk(ucontext_t *uc, uint32_t payload);
+void wasmld(ucontext_t *uc, uint32_t payload);
+void wasmstr(ucontext_t *uc, uint32_t payload);
 
 // If handler itself triggers SIGILL, exit instead of looping.
 static __thread volatile int in_handler = 0;
+
+typedef struct {
+    uint64_t sigill_count;
+    uint64_t wasmbchk_count;
+    uint64_t wasmld_count;
+    uint64_t wasmstr_count;
+} emu_metrics_t;
+
+static emu_metrics_t g_metrics;
 
 static inline uint32_t extract_payload16(uint32_t instr)
 {
@@ -44,6 +57,30 @@ static inline unsigned long* reg_ptr(ucontext_t* uc, uint32_t reg)
     }
 }
 
+static inline uint16_t load_u16_unaligned(const void* ptr)
+{
+    uint16_t value;
+    memcpy(&value, ptr, sizeof(value));
+    return value;
+}
+
+static inline uint32_t load_u32_unaligned(const void* ptr)
+{
+    uint32_t value;
+    memcpy(&value, ptr, sizeof(value));
+    return value;
+}
+
+static inline void store_u16_unaligned(void* ptr, uint16_t value)
+{
+    memcpy(ptr, &value, sizeof(value));
+}
+
+static inline void store_u32_unaligned(void* ptr, uint32_t value)
+{
+    memcpy(ptr, &value, sizeof(value));
+}
+
 static void sigill_handler(const int sig, siginfo_t *info, void *ucontext) {
     ucontext_t *uc = (ucontext_t *)ucontext;
     (void)sig;
@@ -59,9 +96,20 @@ static void sigill_handler(const int sig, siginfo_t *info, void *ucontext) {
     uint32_t payload = extract_payload16(instr);
     uint32_t tag = instr & WASMBCHK_MASK;
 
+    g_metrics.sigill_count++;
+
     switch (tag) {
         case WASMBCHK_TAG:
+            g_metrics.wasmbchk_count++;
             wasmbchk(uc, payload);
+            break;
+        case WASMLD_TAG:
+            g_metrics.wasmld_count++;
+            wasmld(uc, payload);
+            break;
+        case WASMSTR_TAG:
+            g_metrics.wasmstr_count++;
+            wasmstr(uc, payload);
             break;
         default:
             signal(SIGILL, SIG_DFL);
@@ -87,6 +135,17 @@ static void emulator_init(void)
         perror("sigaction");
         return;
     }
+}
+
+__attribute__((destructor))
+static void emulator_fini(void)
+{
+    fprintf(stderr, "EMU_METRIC version=1\n");
+    fprintf(stderr, "EMU_METRIC sigill_count=%llu\n", (unsigned long long)g_metrics.sigill_count);
+    fprintf(stderr, "EMU_METRIC wasmbchk_count=%llu\n", (unsigned long long)g_metrics.wasmbchk_count);
+    fprintf(stderr, "EMU_METRIC wasmld_count=%llu\n", (unsigned long long)g_metrics.wasmld_count);
+    fprintf(stderr, "EMU_METRIC wasmstr_count=%llu\n", (unsigned long long)g_metrics.wasmstr_count);
+    fprintf(stderr, "EMU_METRIC total_count=%llu\n", (unsigned long long)g_metrics.wasmbchk_count + g_metrics.wasmld_count + g_metrics.wasmstr_count);
 }
 
 // Emulated instructions.
@@ -116,4 +175,75 @@ void wasmbchk(ucontext_t *uc, uint32_t payload) {
     }
 
     uc->uc_mcontext.arm_cpsr = cpsr;
+}
+
+void wasmld(ucontext_t *uc, uint32_t payload)
+{
+    uint32_t rd = (payload >> 12) & 0xFu;
+    uint32_t rbase = (payload >> 8) & 0xFu;
+    uint32_t roffset = (payload >> 4) & 0xFu;
+    uint32_t mode = payload & 0xFu;
+
+    unsigned long* rd_ptr = reg_ptr(uc, rd);
+    unsigned long* rbase_ptr = reg_ptr(uc, rbase);
+    unsigned long* roffset_ptr = reg_ptr(uc, roffset);
+
+    if (rd_ptr == NULL || rbase_ptr == NULL || roffset_ptr == NULL) {
+        _Exit(128 + SIGILL);
+    }
+
+    uintptr_t addr = (uintptr_t)(*rbase_ptr) + (uintptr_t)((uint32_t)(*roffset_ptr));
+
+    switch (mode) {
+    case 0:
+        *rd_ptr = (unsigned long)(*(const uint8_t*)addr);
+        break;
+    case 1:
+        *rd_ptr = (unsigned long)(uint32_t)(int32_t)(*(const int8_t*)addr);
+        break;
+    case 2:
+        *rd_ptr = (unsigned long)(load_u16_unaligned((const void*)addr));
+        break;
+    case 3:
+        *rd_ptr = (unsigned long)(uint32_t)(int32_t)(int16_t)load_u16_unaligned((const void*)addr);
+        break;
+    case 4:
+        *rd_ptr = (unsigned long)load_u32_unaligned((const void*)addr);
+        break;
+    default:
+        _Exit(128 + SIGILL);
+    }
+}
+
+void wasmstr(ucontext_t *uc, uint32_t payload)
+{
+    uint32_t rs = (payload >> 12) & 0xFu;
+    uint32_t rbase = (payload >> 8) & 0xFu;
+    uint32_t roffset = (payload >> 4) & 0xFu;
+    uint32_t mode = payload & 0xFu;
+
+    unsigned long* rs_ptr = reg_ptr(uc, rs);
+    unsigned long* rbase_ptr = reg_ptr(uc, rbase);
+    unsigned long* roffset_ptr = reg_ptr(uc, roffset);
+
+    if (rs_ptr == NULL || rbase_ptr == NULL || roffset_ptr == NULL) {
+        _Exit(128 + SIGILL);
+    }
+
+    uintptr_t addr = (uintptr_t)(*rbase_ptr) + (uintptr_t)((uint32_t)(*roffset_ptr));
+    uint32_t value = (uint32_t)(*rs_ptr);
+
+    switch (mode) {
+    case 0:
+        *(uint8_t*)addr = (uint8_t)value;
+        break;
+    case 2:
+        store_u16_unaligned((void*)addr, (uint16_t)value);
+        break;
+    case 4:
+        store_u32_unaligned((void*)addr, value);
+        break;
+    default:
+        _Exit(128 + SIGILL);
+    }
 }

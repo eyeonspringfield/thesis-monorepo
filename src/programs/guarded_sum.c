@@ -10,7 +10,7 @@
 #define SENTINEL_VALUE 0xDEADBAD4U
 
 static void seed_rng() {
-    uint32_t seed = (uint32_t)time(NULL);
+    uint32_t seed = (uint32_t)123456789U;
     srand(seed);
 }
 
