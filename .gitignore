@@ -1,4 +1,3 @@
 .idea
-build
-logs
 .venv
+scripts/__pycache__/

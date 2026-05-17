@@ -1,0 +1,9 @@
+# started on Tue Apr 28 21:54:18 2026
+
+
+ Performance counter stats for 'system wide':
+
+       260,011,062 ns   duration_time                                                         
+
+       0.260002686 seconds time elapsed
+

@@ -1,0 +1,6 @@
+EMU_METRIC version=1
+EMU_METRIC sigill_count=59278
+EMU_METRIC wasmbchk_count=26050
+EMU_METRIC wasmld_count=22306
+EMU_METRIC wasmstr_count=10922
+EMU_METRIC total_count=59278
